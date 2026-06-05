@@ -40,11 +40,10 @@ class PDFBuilder {
   private doc: PDFDocument;
   private page!: PDFPage;
   private bold!: PDFFont;
-  private regular!: PDFFont;
   private y = PAGE_HEIGHT - MARGIN;
 
-  constructor(doc: PDFDocument, bold: PDFFont, regular: PDFFont) {
-    this.doc = doc; this.bold = bold; this.regular = regular;
+  constructor(doc: PDFDocument, bold: PDFFont, _regular: PDFFont) {
+    this.doc = doc; this.bold = bold;
   }
 
   addPage() {
@@ -94,10 +93,11 @@ class PDFBuilder {
 
   section(title: string) {
     this.gap(8);
-    this.checkPage(22);
+    this.checkPage(26);
     this.page.drawText(title.toUpperCase(), { x: MARGIN, y: this.y, size: 9, font: this.bold, color: BLUE });
-    this.y -= 12;
+    this.y -= 14;
     this.line();
+    this.gap(5);
   }
 }
 
