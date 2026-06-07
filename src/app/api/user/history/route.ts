@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const userId = (session as typeof session & { userId?: string }).userId;
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') || '0');
-  const limit = 10;
+  const limit = parseInt(searchParams.get('limit') || '10');
 
   await connectDB();
 
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: -1 })
       .limit(limit)
       .skip(page * limit)
-      .select('jobTitle jobCompany atsScore createdAt usedByok processingMs'),
+      .select('jobTitle jobCompany atsScore createdAt usedByok processingMs hasUserResume'),
     CVGeneration.countDocuments({ userId }),
   ]);
 

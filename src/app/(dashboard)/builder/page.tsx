@@ -4,24 +4,27 @@ import { useState, useEffect } from 'react';
 import { Check, User } from 'lucide-react';
 import Link from 'next/link';
 import { JobInputStep } from '@/components/builder/JobInputStep';
+import { TemplateSelectStep } from '@/components/builder/TemplateSelectStep';
 import { QuestionsStep } from '@/components/builder/QuestionsStep';
 import { GenerateStep } from '@/components/builder/GenerateStep';
 import { CVPreview } from '@/components/cv/CVPreview';
 import { ATSReport } from '@/components/cv/ATSReport';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { TemplateId, TEMPLATES } from '@/components/cv/templates/types';
 
-type Step = 'job' | 'questions' | 'generate' | 'result';
+type Step = 'job' | 'template' | 'questions' | 'generate' | 'result';
 
 interface UserStatus { freeTries: number; hasByok: boolean; }
 interface ProfileData { fullName?: string; desiredTitle?: string; technicalSkills?: string[]; summary?: string; }
 
-const STEP_LABELS = ['Job Details', 'Quick Questions', 'Generate', 'Results'];
-const STEP_ORDER: Step[] = ['job', 'questions', 'generate', 'result'];
+const STEP_LABELS = ['Job Details', 'Template', 'Questions', 'Generate'];
+const STEP_ORDER: Step[] = ['job', 'template', 'questions', 'generate', 'result'];
 
 export default function BuilderPage() {
   const [step, setStep] = useState<Step>('job');
   const [jobText, setJobText] = useState('');
+  const [template, setTemplate] = useState<TemplateId>('modern');
   const [qaAnswers, setQaAnswers] = useState<Record<string, string>>({});
   const [generationId, setGenerationId] = useState('');
   const [userStatus, setUserStatus] = useState<UserStatus>({ freeTries: 3, hasByok: false });
@@ -32,6 +35,14 @@ export default function BuilderPage() {
   useEffect(() => {
     fetch('/api/byok/status').then(r => r.json()).then(d => setUserStatus({ freeTries: d.freeTries, hasByok: d.hasByok })).catch(() => {});
     fetch('/api/profile').then(r => r.json()).then(d => { if (d && !d.error) setProfile(d); }).catch(() => {});
+
+    // Pre-fill from job portal "Create CV" button
+    const prefill = sessionStorage.getItem('prefill_job_desc');
+    if (prefill) {
+      sessionStorage.removeItem('prefill_job_desc');
+      setJobText(prefill);
+      setStep('template');
+    }
   }, []);
 
   const profileSummary = profile
@@ -40,7 +51,8 @@ export default function BuilderPage() {
 
   const hasProfile = !!(profile?.fullName || profile?.technicalSkills?.length);
 
-  const handleJobComplete = (text: string) => { setJobText(text); setStep('questions'); };
+  const handleJobComplete = (text: string) => { setJobText(text); setStep('template'); };
+  const handleTemplateNext = () => setStep('questions');
   const handleQuestionsComplete = (answers: Record<string, string>) => { setQaAnswers(answers); setStep('generate'); };
   const handleSkipQuestions = () => { setQaAnswers({}); setStep('generate'); };
 
@@ -82,7 +94,7 @@ export default function BuilderPage() {
       {/* Step Progress */}
       {step !== 'result' && (
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          {STEP_LABELS.slice(0, 3).map((label, i) => {
+          {STEP_LABELS.map((label, i) => {
             const done = i < stepIndex;
             const active = i === stepIndex;
             return (
@@ -91,7 +103,7 @@ export default function BuilderPage() {
                   {done ? <Check className="w-3 h-3" /> : <span>{i + 1}</span>}
                   {label}
                 </div>
-                {i < 2 && <div className={`w-6 h-px ${done ? 'bg-emerald-300' : 'bg-slate-200'}`} />}
+                {i < STEP_LABELS.length - 1 && <div className={`w-6 h-px ${done ? 'bg-emerald-300' : 'bg-slate-200'}`} />}
               </div>
             );
           })}
@@ -100,6 +112,15 @@ export default function BuilderPage() {
 
       <Card>
         {step === 'job' && <JobInputStep onComplete={handleJobComplete} />}
+
+        {step === 'template' && (
+          <TemplateSelectStep
+            selected={template}
+            onSelect={setTemplate}
+            onNext={handleTemplateNext}
+            onBack={() => setStep('job')}
+          />
+        )}
 
         {step === 'questions' && (
           <QuestionsStep
@@ -130,10 +151,29 @@ export default function BuilderPage() {
                 <p className="text-sm text-slate-500">Ready to download and apply</p>
               </div>
               <div className="flex gap-2 flex-wrap">
-                <a href={`/api/cv/${generationId}/pdf`} className="btn-primary text-sm px-4 py-2">Download PDF</a>
+                <a href={`/api/cv/${generationId}/pdf?template=${template}`} className="btn-primary text-sm px-4 py-2">Download PDF</a>
                 <a href={`/api/cv/${generationId}/docx`} className="btn-secondary text-sm px-4 py-2">Download DOCX</a>
                 <Button variant="ghost" onClick={() => { setStep('job'); setJobText(''); setQaAnswers({}); setResultData(null); }}>New CV</Button>
               </div>
+            </div>
+
+            {/* Template switcher in result */}
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-xs text-slate-500 font-medium">Preview template:</span>
+              {(Object.keys(TEMPLATES) as TemplateId[]).map(id => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTemplate(id)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-xl border transition-colors ${
+                    template === id
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                  }`}
+                >
+                  {TEMPLATES[id].label}
+                </button>
+              ))}
             </div>
 
             {loadingResult ? (
@@ -145,7 +185,7 @@ export default function BuilderPage() {
                 <div className="lg:col-span-3">
                   <h3 className="text-sm font-semibold text-slate-700 mb-3">CV Preview</h3>
                   <div className="border border-slate-200 rounded-xl overflow-hidden max-h-[800px] overflow-y-auto">
-                    <CVPreview cvData={resultData.cvData as Parameters<typeof CVPreview>[0]['cvData']} />
+                    <CVPreview cvData={resultData.cvData as Parameters<typeof CVPreview>[0]['cvData']} template={template} />
                   </div>
                 </div>
                 <div className="lg:col-span-2">
@@ -157,7 +197,7 @@ export default function BuilderPage() {
               </div>
             ) : (
               <div className="text-center text-slate-500 py-12">
-                <p>Could not load preview. <a href={`/api/cv/${generationId}/pdf`} className="text-blue-600">Download PDF directly</a></p>
+                <p>Could not load preview. <a href={`/api/cv/${generationId}/pdf?template=${template}`} className="text-blue-600">Download PDF directly</a></p>
               </div>
             )}
           </div>

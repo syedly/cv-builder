@@ -13,7 +13,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <head>
+        {/* Prevent flash of wrong theme */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          try {
+            var t = localStorage.getItem('theme');
+            var sys = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (t === 'dark' || (!t && sys)) document.documentElement.classList.add('dark');
+          } catch(e) {}
+        ` }} />
+      </head>
       <body>
         <Providers>{children}</Providers>
       </body>
