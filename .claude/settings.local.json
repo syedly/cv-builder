@@ -3,7 +3,8 @@
     "allow": [
       "Bash(node -e \"const c=require\\('crypto'\\); console.log\\('AUTH_SECRET='+c.randomBytes\\(32\\).toString\\('base64'\\)\\); console.log\\('ENCRYPTION_KEY='+c.randomBytes\\(32\\).toString\\('hex'\\)\\);\")",
       "Bash(Remove-Item \"c:\\\\Users\\\\syed ali\\\\Desktop\\\\ai-cv-system\\\\src\\\\lib\\\\auth.ts\" -Force)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(npx next *)"
     ]
   }
 }

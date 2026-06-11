@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useState } from 'react';
-import { FileText, LayoutDashboard, Clock, LogOut, Menu, X, Key, Sparkles, User, PenLine, Briefcase } from 'lucide-react';
+import { FileText, LayoutDashboard, Clock, LogOut, Menu, X, Key, Sparkles, User, PenLine, Briefcase, Wand2 } from 'lucide-react';
 import { BYOKModal } from './BYOKModal';
 import { DarkModeToggle } from './DarkModeToggle';
 import { clsx } from 'clsx';
@@ -20,6 +20,7 @@ export function Navbar() {
     { href: '/jobs',      label: 'Jobs',       icon: Briefcase },
     { href: '/builder',   label: 'AI Builder', icon: Sparkles },
     { href: '/manual',    label: 'Manual',     icon: PenLine },
+    { href: '/enhance',   label: 'Enhance',    icon: Wand2 },
     { href: '/history',   label: 'History',    icon: Clock },
     { href: '/profile',   label: 'Profile',    icon: User },
   ];
