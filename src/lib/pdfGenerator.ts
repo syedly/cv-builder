@@ -1,4 +1,22 @@
-import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage, RGB } from 'pdf-lib';
+
+interface CustomThemePDF {
+  primaryColor: string;
+  accentColor: string;
+  fontFamily: 'sans' | 'serif';
+  headerStyle: 'banner' | 'lines' | 'minimal';
+  spacing: 'compact' | 'normal' | 'spacious';
+  bulletChar: string;
+  showDividers: boolean;
+}
+
+function hexToRgb(hex: string): RGB {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16) / 255;
+  const g = parseInt(h.slice(2, 4), 16) / 255;
+  const b = parseInt(h.slice(4, 6), 16) / 255;
+  return rgb(Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b)));
+}
 
 interface ContactSection {
   name: string; email: string; phone: string;
@@ -49,9 +67,9 @@ class PDFBuilder {
   private y = PAGE_HEIGHT - MARGIN;
   private palette: Palette;
 
-  constructor(doc: PDFDocument, bold: PDFFont, _regular: PDFFont, template: string) {
+  constructor(doc: PDFDocument, bold: PDFFont, _regular: PDFFont, template: string, palette?: Palette) {
     this.doc = doc; this.bold = bold;
-    this.palette = PALETTES[template] ?? PALETTES.modern;
+    this.palette = palette ?? PALETTES[template] ?? PALETTES.modern;
   }
 
   addPage() {
@@ -129,17 +147,39 @@ class PDFBuilder {
   }
 }
 
-export async function generatePDF(cvData: CVData, template = 'modern'): Promise<Buffer> {
+export async function generatePDF(cvData: CVData, template = 'modern', customTheme?: CustomThemePDF): Promise<Buffer> {
+  const isCustom = template === 'custom' && !!customTheme;
+  const useSerif = template === 'classic' || (isCustom && customTheme?.fontFamily === 'serif');
   const doc = await PDFDocument.create();
-  const bold = await doc.embedFont(template === 'classic' ? StandardFonts.TimesRomanBold : StandardFonts.HelveticaBold);
-  const regular = await doc.embedFont(template === 'classic' ? StandardFonts.TimesRoman : StandardFonts.Helvetica);
-  const b = new PDFBuilder(doc, bold, regular, template);
-  const pal = PALETTES[template] ?? PALETTES.modern;
+  const bold = await doc.embedFont(useSerif ? StandardFonts.TimesRomanBold : StandardFonts.HelveticaBold);
+  const regular = await doc.embedFont(useSerif ? StandardFonts.TimesRoman : StandardFonts.Helvetica);
+
+  let pal: Palette;
+  if (isCustom && customTheme) {
+    const primary = hexToRgb(customTheme.primaryColor);
+    const accent = hexToRgb(customTheme.accentColor);
+    pal = { accent, heading: primary, body: rgb(0.1, 0.1, 0.1), muted: rgb(0.45, 0.45, 0.45) };
+  } else {
+    pal = PALETTES[template] ?? PALETTES.modern;
+  }
+
+  const b = new PDFBuilder(doc, bold, regular, template, pal);
   b.addPage();
 
   const { contactSection: c, professionalSummary, workExperience, skills, education, certifications, projects, achievements } = cvData;
 
-  if (template === 'executive') {
+  const bulletChar = isCustom && customTheme?.bulletChar !== undefined ? (customTheme.bulletChar || '') : '•';
+
+  if (isCustom && customTheme?.headerStyle === 'banner') {
+    b.banner(58, pal.heading);
+    const white = rgb(1, 1, 1);
+    const lightColor = rgb(0.85, 0.9, 1.0);
+    b.gap(-32);
+    b.text(c.name || 'Your Name', 18, bold, 0, white);
+    const contactParts = [c.email, c.phone, c.linkedin, c.github, c.portfolio, c.location].filter(Boolean);
+    b.wrapped(contactParts.join('  |  '), 7.5, regular, 0, lightColor);
+    b.gap(10);
+  } else if (template === 'executive') {
     // Navy banner header
     b.banner(58, pal.heading);
     const white = rgb(1, 1, 1);
@@ -190,7 +230,7 @@ export async function generatePDF(cvData: CVData, template = 'modern'): Promise<
       b.text(dateStr, 8.5, regular, 0, pal.muted);
       b.gap(1);
       for (const bullet of (job.bullets || []).filter(Boolean)) {
-        b.wrapped(`• ${bullet}`, 9, regular, 10);
+        b.wrapped(bulletChar ? `${bulletChar} ${bullet}` : bullet, 9, regular, 10);
       }
       b.gap(6);
     }
@@ -237,14 +277,14 @@ export async function generatePDF(cvData: CVData, template = 'modern'): Promise<
   // Certifications
   if (certifications?.length) {
     b.section('Certifications', template);
-    for (const cert of certifications as string[]) b.wrapped(`• ${cert}`, 9, regular, 10);
+    for (const cert of certifications as string[]) b.wrapped(bulletChar ? `${bulletChar} ${cert}` : cert, 9, regular, 10);
     b.gap(2);
   }
 
   // Achievements
   if (achievements?.filter(Boolean).length) {
     b.section('Achievements', template);
-    for (const ach of achievements.filter(Boolean)) b.wrapped(`• ${ach}`, 9, regular, 10);
+    for (const ach of achievements.filter(Boolean)) b.wrapped(bulletChar ? `${bulletChar} ${ach}` : ach, 9, regular, 10);
   }
 
   return Buffer.from(await doc.save());

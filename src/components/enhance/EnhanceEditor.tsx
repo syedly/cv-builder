@@ -453,7 +453,7 @@ export function EnhanceEditor({
             <ArrowLeft className="w-3.5 h-3.5" /> Upload another
           </button>
           <div className="flex gap-1">
-            {(Object.keys(TEMPLATES) as TemplateId[]).map(id => (
+            {(Object.keys(TEMPLATES) as Exclude<TemplateId, 'custom'>[]).map(id => (
               <button key={id} type="button" onClick={() => setTemplate(id)}
                 className={`px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors ${
                   template === id
@@ -506,7 +506,7 @@ export function EnhanceEditor({
             }`}>
             <PenLine className="w-3.5 h-3.5" /> Edit Manually
           </button>
-          <span className="ml-auto text-xs text-slate-400 dark:text-slate-500">{TEMPLATES[template].label} template</span>
+          <span className="ml-auto text-xs text-slate-400 dark:text-slate-500">{template !== 'custom' ? TEMPLATES[template].label : 'Custom'} template</span>
         </div>
 
         <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950">

@@ -9,7 +9,7 @@ interface TemplateSelectStepProps {
   onBack: () => void;
 }
 
-const THUMBNAILS: Record<TemplateId, React.ReactNode> = {
+const THUMBNAILS: Record<Exclude<TemplateId, 'custom'>, React.ReactNode> = {
   modern: (
     <div className="w-full h-full bg-white p-2 flex flex-col gap-1">
       <div className="text-center mb-1">
@@ -113,7 +113,7 @@ function ContentLines({ muted }: { muted?: boolean }) {
 }
 
 export function TemplateSelectStep({ selected, onSelect, onNext, onBack }: TemplateSelectStepProps) {
-  const templateIds = Object.keys(TEMPLATES) as TemplateId[];
+  const templateIds = Object.keys(TEMPLATES) as Exclude<TemplateId, 'custom'>[];
 
   return (
     <div className="space-y-6">
@@ -171,7 +171,7 @@ export function TemplateSelectStep({ selected, onSelect, onNext, onBack }: Templ
       <div className="flex gap-3">
         <button type="button" onClick={onBack} className="btn-secondary">Back</button>
         <button type="button" onClick={onNext} className="btn-primary flex-1 sm:flex-none">
-          Continue with {TEMPLATES[selected].label} →
+          Continue with {selected !== 'custom' ? TEMPLATES[selected].label : 'Custom'} →
         </button>
       </div>
     </div>

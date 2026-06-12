@@ -1,23 +1,26 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Plus, Trash2, ChevronDown, ChevronUp, X, Eye, EyeOff,
-  Download, Sparkles, Lock, Loader2, Wand2, Check,
+  Download, Sparkles, Lock, Loader2, Wand2, Check, Palette,
 } from 'lucide-react';
 import { CVPreview } from '@/components/cv/CVPreview';
 import { TemplateSelectStep } from '@/components/builder/TemplateSelectStep';
-import { CVData, TemplateId, TEMPLATES } from '@/components/cv/templates/types';
+import { CVData, TemplateId, TEMPLATES, CustomTheme, SavedTheme } from '@/components/cv/templates/types';
+import { ThemeDesigner } from '@/components/manual/ThemeDesigner';
 
 /* ─── local types with id for React keys ──────────────────── */
 interface WItem { _id: string; company: string; title: string; startDate: string; endDate: string; current: boolean; location: string; bullets: string[]; }
 interface EItem { _id: string; degree: string; field: string; school: string; graduationYear: string; gpa: string; honors: string; }
 interface PItem { _id: string; name: string; description: string; technologies: string[]; github: string; link: string; }
+interface RItem { _id: string; name: string; title: string; organization: string; email: string; phone: string; }
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const emptyWork  = (): WItem => ({ _id: uid(), company: '', title: '', startDate: '', endDate: '', current: false, location: '', bullets: ['', '', ''] });
 const emptyEdu   = (): EItem => ({ _id: uid(), degree: '', field: '', school: '', graduationYear: '', gpa: '', honors: '' });
 const emptyProj  = (): PItem => ({ _id: uid(), name: '', description: '', technologies: [], github: '', link: '' });
+const emptyRef   = (): RItem => ({ _id: uid(), name: '', title: '', organization: '', email: '', phone: '' });
 
 /* ─── shared field styles ─────────────────────────────────── */
 const inp  = 'w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition';
@@ -192,6 +195,36 @@ function ProjForm({ item, onChange, onRemove }: { item: PItem; onChange: (i: PIt
   );
 }
 
+/* ─── Collapsible reference item ─────────────────────────── */
+function RefForm({ item, onChange, onRemove }: { item: RItem; onChange: (i: RItem) => void; onRemove: () => void }) {
+  const [open, setOpen] = useState(true);
+  const s = (k: keyof RItem, v: string) => onChange({ ...item, [k]: v });
+  return (
+    <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden mb-2">
+      <div className="flex items-center justify-between px-3 py-2.5 bg-slate-50 dark:bg-slate-800/60 cursor-pointer" onClick={() => setOpen(o => !o)}>
+        <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
+          {item.name || 'New Reference'}{item.organization ? ` — ${item.organization}` : ''}
+        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button type="button" onClick={e => { e.stopPropagation(); onRemove(); }} className="p-1 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+          {open ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+        </div>
+      </div>
+      {open && (
+        <div className="p-3 space-y-2.5">
+          <div className="grid grid-cols-2 gap-2">
+            <FL label="Full Name *"><input className={inp} value={item.name} onChange={e => s('name', e.target.value)} placeholder="Dr. Jane Smith" /></FL>
+            <FL label="Job Title"><input className={inp} value={item.title} onChange={e => s('title', e.target.value)} placeholder="Engineering Manager" /></FL>
+            <FL label="Organization"><input className={inp} value={item.organization} onChange={e => s('organization', e.target.value)} placeholder="Google" /></FL>
+            <FL label="Email"><input className={inp} value={item.email} onChange={e => s('email', e.target.value)} placeholder="jane@google.com" /></FL>
+          </div>
+          <FL label="Phone"><input className={inp} value={item.phone} onChange={e => s('phone', e.target.value)} placeholder="+1-202-555-0100" /></FL>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── AI Summary Panel ────────────────────────────────────── */
 function SummaryAI({ summary, onChange, hasByok, cvData }: {
   summary: string; onChange: (s: string) => void; hasByok: boolean; cvData: CVData;
@@ -298,11 +331,11 @@ function SummaryAI({ summary, onChange, hasByok, cvData }: {
 }
 
 /* ─── Download helper ─────────────────────────────────────── */
-async function downloadCV(cvData: CVData, template: string, format: 'pdf' | 'docx', name: string) {
+async function downloadCV(cvData: CVData, template: string, format: 'pdf' | 'docx', name: string, customTheme?: CustomTheme | null) {
   const res = await fetch('/api/cv/export', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cvData, template, format, filename: name || 'my-cv' }),
+    body: JSON.stringify({ cvData, template, format, filename: name || 'my-cv', customTheme }),
   });
   if (!res.ok) return;
   const blob = await res.blob();
@@ -316,12 +349,16 @@ async function downloadCV(cvData: CVData, template: string, format: 'pdf' | 'doc
 export function ManualEditor() {
   const [step, setStep] = useState<'template' | 'edit'>('template');
   const [template, setTemplate] = useState<TemplateId>('modern');
+  const [customTheme, setCustomTheme] = useState<CustomTheme | null>(null);
+  const [savedThemes, setSavedThemes] = useState<SavedTheme[]>([]);
+  const [designerOpen, setDesignerOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
   const [hasByok, setHasByok] = useState(false);
   const [downloading, setDownloading] = useState<'pdf' | 'docx' | null>(null);
 
   // Form state
   const [name, setName] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
@@ -337,21 +374,23 @@ export function ManualEditor() {
   const [projs, setProjs] = useState<PItem[]>([]);
   const [certs, setCerts] = useState<string[]>([]);
   const [achievements, setAchievements] = useState<string[]>([]);
+  const [refs, setRefs] = useState<RItem[]>([]);
 
   // Section open/close
   const [openSec, setOpenSec] = useState<Record<string, boolean>>({
     contact: true, summary: true, work: true, edu: true,
-    skills: true, projects: false, certs: false, achievements: false,
+    skills: true, projects: false, certs: false, achievements: false, references: false,
   });
   const tog = (k: string) => setOpenSec(o => ({ ...o, [k]: !o[k] }));
 
   useEffect(() => {
     fetch('/api/byok/status').then(r => r.json()).then(d => setHasByok(!!d.hasByok)).catch(() => {});
+    fetch('/api/themes').then(r => r.json()).then(d => setSavedThemes(d.themes || [])).catch(() => {});
   }, []);
 
   // Compute live CVData
   const cvData: CVData = useMemo(() => ({
-    contactSection: { name, email, phone, location, linkedin, github, portfolio },
+    contactSection: { name, title: jobTitle, email, phone, location, linkedin, github, portfolio },
     professionalSummary: summary,
     workExperience: work.map(({ _id, current, ...w }) => ({ ...w, endDate: current ? 'Present' : w.endDate })),
     skills: { technical: tech, soft, languages: langs },
@@ -359,11 +398,12 @@ export function ManualEditor() {
     certifications: certs.filter(Boolean),
     projects: projs.map(({ _id, ...p }) => p),
     achievements: achievements.filter(Boolean),
-  }), [name, email, phone, location, linkedin, github, portfolio, summary, work, edu, tech, soft, langs, projs, certs, achievements]);
+    references: refs.filter(r => r.name).map(({ _id, ...r }) => r),
+  }), [name, jobTitle, email, phone, location, linkedin, github, portfolio, summary, work, edu, tech, soft, langs, projs, certs, achievements, refs]);
 
   const handleDownload = async (format: 'pdf' | 'docx') => {
     setDownloading(format);
-    await downloadCV(cvData, template, format, name || 'my-cv');
+    await downloadCV(cvData, template, format, name || 'my-cv', customTheme);
     setDownloading(null);
   };
 
@@ -392,19 +432,37 @@ export function ManualEditor() {
       {/* ── Left: Live Preview ── */}
       <div className={`lg:w-[44%] lg:flex lg:flex-col border-r border-slate-200 dark:border-slate-700 ${mobileTab === 'preview' ? 'flex flex-col' : 'hidden lg:flex'}`}>
         {/* Preview header */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 shrink-0">
-          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Live Preview</span>
-          <div className="flex gap-1">
-            {(Object.keys(TEMPLATES) as TemplateId[]).map(id => (
-              <button key={id} type="button" onClick={() => setTemplate(id)}
+        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 shrink-0 flex-wrap">
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide shrink-0">Template</span>
+          <div className="flex flex-wrap gap-1 flex-1">
+            {(Object.keys(TEMPLATES) as Exclude<TemplateId, 'custom'>[]).map(id => (
+              <button key={id} type="button" onClick={() => { setTemplate(id); setCustomTheme(null); }}
                 className={`px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors ${
-                  template === id
+                  template === id && !customTheme
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600 hover:border-blue-400'
                 }`}>
                 {TEMPLATES[id].label}
               </button>
             ))}
+            {/* Saved custom themes */}
+            {savedThemes.map(t => (
+              <button key={t._id} type="button"
+                onClick={() => { setTemplate('custom'); setCustomTheme(t); }}
+                className={`px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors flex items-center gap-1 ${
+                  template === 'custom' && customTheme && (customTheme as SavedTheme)._id === t._id
+                    ? 'bg-violet-600 text-white border-violet-600'
+                    : 'text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-700 hover:border-violet-400'
+                }`}>
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: t.primaryColor }} />
+                {t.name}
+              </button>
+            ))}
+            {/* Design button */}
+            <button type="button" onClick={() => setDesignerOpen(true)}
+              className="px-2 py-1 text-[10px] font-medium rounded-lg border border-dashed border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors flex items-center gap-1">
+              <Palette className="w-3 h-3" /> Design
+            </button>
           </div>
         </div>
 
@@ -412,7 +470,7 @@ export function ManualEditor() {
         <div className="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-950 p-3">
           <div className="bg-white shadow-sm rounded-lg overflow-hidden min-h-[1000px] origin-top"
                style={{ fontSize: '75%' }}>
-            <CVPreview cvData={cvData} template={template} />
+            <CVPreview cvData={cvData} template={template} customTheme={customTheme} />
           </div>
         </div>
 
@@ -434,14 +492,20 @@ export function ManualEditor() {
       {/* ── Right: Form ── */}
       <div className={`lg:flex-1 lg:flex lg:flex-col ${mobileTab === 'edit' ? 'flex flex-col' : 'hidden lg:flex'}`}>
         {/* Form header */}
-        <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900">
-          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-            {TEMPLATES[template].label} Template
+        <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 gap-2">
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide shrink-0">
+            {template !== 'custom' ? TEMPLATES[template].label : (customTheme ? 'Custom' : 'Custom')} Template
           </span>
-          <button type="button" onClick={() => setStep('template')}
-            className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-            Change template
-          </button>
+          <div className="flex items-center gap-2 ml-auto">
+            <button type="button" onClick={() => setDesignerOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-dashed border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors">
+              <Palette className="w-3.5 h-3.5" /> Design your own
+            </button>
+            <button type="button" onClick={() => setStep('template')}
+              className="text-xs text-blue-600 hover:text-blue-700 font-medium shrink-0">
+              Change
+            </button>
+          </div>
         </div>
 
         {/* Form body */}
@@ -455,6 +519,7 @@ export function ManualEditor() {
                 <div className="pt-3 space-y-2.5">
                   <div className="grid grid-cols-2 gap-2">
                     <FL label="Full Name *"><input className={inp} value={name} onChange={e => setName(e.target.value)} placeholder="Syed Hassan Ali" /></FL>
+                    <FL label="Professional Title"><input className={inp} value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder="Senior Software Engineer" /></FL>
                     <FL label="Email *"><input className={inp} value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" /></FL>
                     <FL label="Phone"><input className={inp} value={phone} onChange={e => setPhone(e.target.value)} placeholder="+92-315-000-0000" /></FL>
                     <FL label="Location"><input className={inp} value={location} onChange={e => setLocation(e.target.value)} placeholder="Lahore, Pakistan" /></FL>
@@ -627,6 +692,37 @@ export function ManualEditor() {
               )}
             </div>
 
+            {/* ─ References ─ */}
+            <div className="card p-4">
+              <SecHead
+                title="References"
+                open={openSec.references}
+                onToggle={() => tog('references')}
+                extra={
+                  <button type="button" onClick={e => { e.stopPropagation(); setRefs(r => [...r, emptyRef()]); setOpenSec(o => ({ ...o, references: true })); }}
+                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+                    <Plus className="w-3.5 h-3.5" /> Add
+                  </button>
+                }
+              />
+              {openSec.references && (
+                <div className="pt-3">
+                  {refs.length === 0 && (
+                    <div className="text-center py-6 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                      <p className="text-sm text-slate-400 mb-2">No references added</p>
+                      <button type="button" onClick={() => setRefs([emptyRef()])} className="text-sm text-blue-600 hover:text-blue-700 font-medium">Add reference</button>
+                    </div>
+                  )}
+                  {refs.map(item => (
+                    <RefForm key={item._id} item={item}
+                      onChange={updated => setRefs(r => r.map(x => x._id === updated._id ? updated : x))}
+                      onRemove={() => setRefs(r => r.filter(x => x._id !== item._id))}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Bottom download on mobile */}
             <div className="lg:hidden pb-4 flex gap-2 pt-2">
               <button type="button" onClick={() => handleDownload('pdf')} disabled={downloading !== null}
@@ -643,6 +739,31 @@ export function ManualEditor() {
           </div>
         </div>
       </div>
+
+      {/* ── Theme Designer overlay ── */}
+      {designerOpen && (
+        <ThemeDesigner
+          cvData={cvData}
+          initialTheme={template === 'custom' && customTheme ? { ...(customTheme as SavedTheme) } : null}
+          savedThemes={savedThemes}
+          onApply={(t) => { setTemplate('custom'); setCustomTheme(t); }}
+          onSaved={(t) => {
+            setSavedThemes(prev => {
+              const idx = prev.findIndex(x => x._id === t._id);
+              return idx >= 0 ? prev.map(x => x._id === t._id ? t : x) : [t, ...prev];
+            });
+            setTemplate('custom');
+            setCustomTheme(t);
+          }}
+          onDeleted={(id) => {
+            setSavedThemes(prev => prev.filter(x => x._id !== id));
+            if (template === 'custom' && (customTheme as SavedTheme)?._id === id) {
+              setTemplate('modern'); setCustomTheme(null);
+            }
+          }}
+          onClose={() => setDesignerOpen(false)}
+        />
+      )}
 
       {/* ── Mobile tab toggle ── */}
       <div className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-30">

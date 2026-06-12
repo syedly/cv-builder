@@ -21,7 +21,7 @@ interface CVItem {
 
 function ViewModal({ cv, onClose }: { cv: CVItem; onClose: () => void }) {
   const [template, setTemplate] = useState<TemplateId>('modern');
-  const templateIds = Object.keys(TEMPLATES) as TemplateId[];
+  const templateIds = Object.keys(TEMPLATES) as Exclude<TemplateId, 'custom'>[];
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
@@ -66,7 +66,7 @@ function ViewModal({ cv, onClose }: { cv: CVItem; onClose: () => void }) {
 
 function DownloadMenu({ cvId }: { cvId: string }) {
   const [open, setOpen] = useState(false);
-  const templateIds = Object.keys(TEMPLATES) as TemplateId[];
+  const templateIds = Object.keys(TEMPLATES) as Exclude<TemplateId, 'custom'>[];
 
   return (
     <div className="relative">

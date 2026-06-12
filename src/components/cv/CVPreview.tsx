@@ -1,14 +1,16 @@
 'use client';
 
-import { CVData, TemplateId } from './templates/types';
+import { CVData, TemplateId, CustomTheme } from './templates/types';
 import { ClassicTemplate } from './templates/ClassicTemplate';
 import { ExecutiveTemplate } from './templates/ExecutiveTemplate';
 import { MinimalTemplate } from './templates/MinimalTemplate';
 import { CreativeTemplate } from './templates/CreativeTemplate';
+import { CustomTemplate } from './templates/CustomTemplate';
 
 interface CVPreviewProps {
   cvData: CVData;
   template?: TemplateId;
+  customTheme?: CustomTheme | null;
 }
 
 function ModernTemplate({ cvData }: { cvData: CVData }) {
@@ -139,8 +141,9 @@ function ModernSectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function CVPreview({ cvData, template = 'modern' }: CVPreviewProps) {
+export function CVPreview({ cvData, template = 'modern', customTheme }: CVPreviewProps) {
   if (!cvData) return null;
+  if (template === 'custom' && customTheme) return <CustomTemplate cvData={cvData} theme={customTheme} />;
   switch (template) {
     case 'classic':   return <ClassicTemplate cvData={cvData} />;
     case 'executive': return <ExecutiveTemplate cvData={cvData} />;

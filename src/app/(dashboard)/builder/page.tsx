@@ -160,7 +160,7 @@ export default function BuilderPage() {
             {/* Template switcher in result */}
             <div className="flex flex-wrap gap-2 items-center">
               <span className="text-xs text-slate-500 font-medium">Preview template:</span>
-              {(Object.keys(TEMPLATES) as TemplateId[]).map(id => (
+              {(Object.keys(TEMPLATES) as Exclude<TemplateId, 'custom'>[]).map(id => (
                 <button
                   key={id}
                   type="button"

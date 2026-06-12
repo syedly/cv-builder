@@ -32,7 +32,7 @@ function MiniViewModal({ cv, onClose }: { cv: CVItem; onClose: () => void }) {
           <h2 className="font-bold text-slate-900 dark:text-slate-100">{cv.jobTitle}</h2>
           <div className="flex items-center gap-2">
             <div className="flex gap-1.5 flex-wrap">
-              {(Object.keys(TEMPLATES) as TemplateId[]).map(id => (
+              {(Object.keys(TEMPLATES) as Exclude<TemplateId, 'custom'>[]).map(id => (
                 <button key={id} type="button" onClick={() => setTemplate(id)}
                   className={`px-2 py-1 text-xs font-medium rounded-lg border transition-colors ${template === id ? 'bg-blue-600 text-white border-blue-600' : 'text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-blue-300'}`}>
                   {TEMPLATES[id].label}

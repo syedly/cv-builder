@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { cvData, template = 'modern', format = 'pdf', filename = 'cv' } = await req.json();
+  const { cvData, template = 'modern', format = 'pdf', filename = 'cv', customTheme } = await req.json();
 
   if (!cvData) return NextResponse.json({ error: 'cvData required' }, { status: 400 });
 
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
 
   const { generatePDF } = await import('@/lib/pdfGenerator');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const buf = await generatePDF(cvData as any, template);
+  const buf = await generatePDF(cvData as any, template, customTheme);
   return new NextResponse(new Uint8Array(buf).buffer as ArrayBuffer, {
     headers: {
       'Content-Type': 'application/pdf',
